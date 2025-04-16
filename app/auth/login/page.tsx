@@ -1,11 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import AuthLayout from '../../../components/AuthLayout';
 
-export default function Login() {
+function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [userType, setUserType] = useState('user'); // 'user' or 'agent'
@@ -211,5 +211,14 @@ export default function Login() {
         </div>
       </div>
     </AuthLayout>
+  );
+}
+
+// Wrap the login form in a suspense boundary for useSearchParams
+export default function Login() {
+  return (
+    <Suspense fallback={<div className="p-4 text-center">Loading...</div>}>
+      <LoginForm />
+    </Suspense>
   );
 }

@@ -1,11 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import AuthLayout from '../../../components/AuthLayout';
 
-export default function Register() {
+function RegisterForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [userType, setUserType] = useState('user'); // 'user' or 'agent'
@@ -518,5 +518,14 @@ export default function Register() {
         </div>
       )}
     </AuthLayout>
+  );
+}
+
+// Wrap the register form in a suspense boundary for useSearchParams
+export default function Register() {
+  return (
+    <Suspense fallback={<div className="p-4 text-center">Loading...</div>}>
+      <RegisterForm />
+    </Suspense>
   );
 }
