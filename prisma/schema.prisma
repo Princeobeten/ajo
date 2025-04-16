@@ -1,0 +1,203 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  USER
+  AGENT
+  ADMIN
+}
+
+enum KYCStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum TransactionType {
+  DEPOSIT
+  WITHDRAWAL
+  TRANSFER
+  LOAN_REPAYMENT
+  SAVINGS
+  COMMISSION
+  REFUND
+}
+
+enum TransactionStatus {
+  PENDING
+  COMPLETED
+  FAILED
+}
+
+enum LoanStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  ACTIVE
+  PAID
+  DEFAULTED
+}
+
+enum SupportTicketStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  password      String
+  firstName     String
+  lastName      String
+  phone         String?   @unique
+  role          UserRole  @default(USER)
+  isVerified    Boolean   @default(false)
+  kycStatus     KYCStatus @default(PENDING)
+  kycDocuments  Json?     // Store Cloudinary URLs and document types
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relationships
+  wallet        Wallet?
+  targetSavings TargetSaving[]
+  ajoGroups     AjoGroupMember[]
+  loans         Loan[]
+  transactions  Transaction[]
+  supportTickets SupportTicket[]
+}
+
+model Wallet {
+  id            String    @id @default(cuid())
+  balance       Float     @default(0)
+  userId        String    @unique
+  user          User      @relation(fields: [userId], references: [id])
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  transactions  Transaction[]
+}
+
+model TargetSaving {
+  id            String    @id @default(cuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id])
+  name          String
+  targetAmount  Float
+  savedAmount   Float     @default(0)
+  startDate     DateTime
+  endDate       DateTime
+  isGroup       Boolean   @default(false)
+  groupMembers  Json?     // Array of member IDs for group savings
+  isBroken      Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  transactions  Transaction[]
+}
+
+model AjoGroup {
+  id            String    @id @default(cuid())
+  name          String
+  description   String?
+  totalMembers  Int
+  contribution  Float
+  frequency     String    // daily, weekly, monthly
+  startDate     DateTime
+  endDate       DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  members       AjoGroupMember[]
+  transactions  Transaction[]
+}
+
+model AjoGroupMember {
+  id            String    @id @default(cuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id])
+  groupId       String
+  group         AjoGroup  @relation(fields: [groupId], references: [id])
+  position      Int       // Position in rotation
+  joinedAt      DateTime  @default(now())
+  
+  @@unique([userId, groupId])
+}
+
+model Loan {
+  id            String      @id @default(cuid())
+  userId        String
+  user          User        @relation(fields: [userId], references: [id])
+  amount        Float
+  interest      Float
+  status        LoanStatus  @default(PENDING)
+  purpose       String
+  duration      Int         // in months
+  score         Float?      // AI-generated credit score
+  approvedBy    String?     // Admin ID
+  approvedAt    DateTime?
+  dueDate       DateTime?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  transactions  Transaction[]
+}
+
+model Transaction {
+  id            String            @id @default(cuid())
+  userId        String
+  user          User              @relation(fields: [userId], references: [id])
+  type          TransactionType
+  amount        Float
+  status        TransactionStatus @default(PENDING)
+  reference     String?           // External payment reference
+  description   String?
+  metadata      Json?             // Additional transaction data
+  walletId      String?
+  wallet        Wallet?           @relation(fields: [walletId], references: [id])
+  loanId        String?
+  loan          Loan?             @relation(fields: [loanId], references: [id])
+  targetId      String?
+  target        TargetSaving?     @relation(fields: [targetId], references: [id])
+  ajoGroupId    String?
+  ajoGroup      AjoGroup?         @relation(fields: [ajoGroupId], references: [id])
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+}
+
+model SupportTicket {
+  id            String              @id @default(cuid())
+  userId        String
+  user          User                @relation(fields: [userId], references: [id])
+  subject       String
+  description   String
+  status        SupportTicketStatus @default(OPEN)
+  assignedTo    String?             // Agent/Admin ID
+  resolution    String?
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+}
+
+model SystemSettings {
+  id                    String    @id @default(cuid())
+  ajoCreatorFee        Float     @default(3.33333333) // Total fee percentage
+  ajoAgentShare        Float     @default(2.0)        // Agent's share of the fee
+  withdrawalFee        Float     @default(1.0)        // Percentage
+  loanInterest        Float     @default(20.0)       // Percentage
+  breakSavingsFee     Float     @default(5.0)        // Percentage
+  updatedAt           DateTime  @updatedAt
+}
